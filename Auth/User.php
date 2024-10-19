@@ -104,7 +104,7 @@ class UserAuthentication
                     date_default_timezone_set('UTC');
 
                     $verification_code = random_int(100000, 999999);
-                    $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+                    $expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
 
                     // Generate a UUID for the verification code
                     $stmt = $this->conn->prepare("INSERT INTO verification_codes (id, user_uuid, code, expires_at) VALUES (UUID(), ?, ?, ?)");
@@ -152,44 +152,54 @@ class UserAuthentication
 
     public function register($first_name, $last_name, $email, $phone_number, $address, $password)
     {
+        // Validate input
         if (empty($first_name) || empty($last_name) || empty($email) || empty($phone_number) || empty($address) || empty($password)) {
             return ['error' => 'Invalid input data'];
         }
 
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $user_uuid = bin2hex(random_bytes(16)); // Generate a unique UUID for the user
+        $user_uuid = bin2hex(random_bytes(16));
 
-        $stmt = $this->conn->prepare("SELECT * FROM users WHERE email = ? OR phone_number = ?");
-        $stmt->bind_param('ss', $email, $phone_number);
+        // Check if the email is already in use
+        $stmt = $this->conn->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->bind_param('s', $email);
         $stmt->execute();
         $result = $stmt->get_result();
 
-        if ($result->num_rows === 0) {
-            // If the user doesn't exist, insert a new record
-            $stmt = $this->conn->prepare("INSERT INTO users (user_uuid, first_name, last_name, email, phone_number, address, password) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('sssssss', $user_uuid, $first_name, $last_name, $email, $phone_number, $address, $hashed_password);
+        if ($result->num_rows > 0) {
+            return ['error' => 'Email is already in use'];
+        }
 
-            if ($stmt->execute()) {
-                return ['message' => 'User registered successfully'];
-            } else {
-                return ['error' => 'Failed to register user'];
-            }
+        // Check if the phone number is already in use
+        $stmt = $this->conn->prepare("SELECT * FROM users WHERE phone_number = ?");
+        $stmt->bind_param('s', $phone_number);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            return ['error' => 'Phone number is already in use'];
+        }
+
+        // If both email and phone number are unique, insert the new user
+        $stmt = $this->conn->prepare("INSERT INTO users (user_uuid, first_name, last_name, email, phone_number, address, password) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param('sssssss', $user_uuid, $first_name, $last_name, $email, $phone_number, $address, $hashed_password);
+
+        if ($stmt->execute()) {
+            return ['message' => 'User registered successfully'];
         } else {
-            return ['error' => 'User already exists'];
+            return ['error' => 'Failed to register user'];
         }
     }
-
     // Logout function
     public function logout()
     {
-        // Get the Authorization header
         $headers = apache_request_headers();
 
-        // Check if the Authorization header is present and contains a Bearer token
+
         if (isset($headers['Authorization']) && preg_match('/Bearer\s(\S+)/', $headers['Authorization'], $matches)) {
             $token = $matches[1]; // Extract the token
 
-            // Prepare the SQL statement
+
             $stmt = $this->conn->prepare("DELETE FROM session_token WHERE token = ?");
             $stmt->bind_param('s', $token);
 

@@ -1,7 +1,7 @@
 <?php
 
 require '../database/db.php';
-require './routes.php'; // Include the routes file
+require './routes.php';
 require '../utils/response.php';
 
 use database\Database;
@@ -40,7 +40,6 @@ class API
         }
     }
 }
-
 // Instantiate the API and handle the request
 $api = new API();
 $api->handleRequest();
