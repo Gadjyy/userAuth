@@ -45,10 +45,10 @@ class UserList
 
         // Fetch users with pagination
         $stmt = $this->conn->prepare("
-            SELECT user_uuid, role
-            FROM users
-            LIMIT ? OFFSET ?
-        ");
+        SELECT user_uuid, first_name, last_name, email, address, phone_number
+        FROM users
+        LIMIT ? OFFSET ?
+    ");
         $stmt->bind_param('ii', $limit, $offset);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -57,8 +57,12 @@ class UserList
         $users = [];
         while ($row = $result->fetch_assoc()) {
             $users[] = [
-                'user_id' => $row['user_uuid'],
-                'role' => $row['role']
+            'user_id' => $row['user_uuid'],
+            'first_name' => $row['first_name'],
+            'last_name' => $row['last_name'],
+            'email' => $row['email'],
+            'address' => $row['address'],
+            'phone_number' => $row['phone_number']
             ];
         }
 
